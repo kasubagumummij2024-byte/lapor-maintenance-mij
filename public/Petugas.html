@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Panel Petugas - Sistem Laporan MIJ</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-gray-900 text-gray-200 min-h-screen">
+  <div class="max-w-6xl mx-auto p-6">
+    <header class="flex items-center justify-between mb-6">
+        <div><h1 class="text-2xl font-bold text-teal-400">Madrasah Istiqlal Jakarta — Sistem Laporan</h1><p class="text-sm text-gray-400">Maintenance & Support - Transparan · Terukur · Terverifikasi</p></div>
+        <nav class="space-x-2 flex items-center" id="nav-buttons">
+            </nav>
+    </header>
+    <main class="min-h-[520px] bg-gray-800/50 rounded-lg p-4">
+        <div class="bg-gray-800 p-6 rounded-2xl shadow text-gray-200">
+            <h2 class="text-xl font-semibold text-teal-400 mb-3">Panel Petugas - Tugas Saya</h2>
+            <div class="flex items-center space-x-3 mb-4 bg-gray-900/50 p-3 rounded-md">
+                <label for="urgensiFilter" class="font-medium">Filter Urgensi:</label>
+                <select id="urgensiFilter" class="p-2 bg-gray-900 border border-gray-700 rounded"><option>Semua</option><option>Mendesak</option><option>Normal</option><option>Santai</option></select>
+                <button onclick="loadAssignedReports()" class="px-4 py-2 bg-teal-600 hover:bg-teal-700 rounded">Filter</button>
+            </div>
+            <div id="content"></div>
+        </div>
+    </main>
+    <footer class="mt-8 text-sm text-gray-500 text-center">&copy; Madrasah Istiqlal Jakarta</footer>
+  </div>
+  <div id="appModal" class="modal-backdrop"><div class="modal-content"><h3 id="modalTitle" class="text-lg font-bold"></h3><div id="modalBody"></div><div id="modalFooter" class="mt-6 flex justify-end space-x-3"><button id="modalCancelBtn" class="px-4 py-2 bg-gray-600 rounded">Batal</button><button id="modalConfirmBtn" class="px-4 py-2 bg-teal-600 rounded">Konfirmasi</button></div></div></div>
+  
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+  <script>
+      const firebaseConfig = {
+            apiKey: "AIzaSyDltfCcasmcgatDZLyXjad0c6rvJlkLNvM",
+            authDomain: "webapp-laporan-maintenance-v3.firebaseapp.com",
+            projectId: "webapp-laporan-maintenance-v3",
+            storageBucket: "webapp-laporan-maintenance-v3.appspot.com",
+            messagingSenderId: "164633815053",
+            appId: "1:164633815053:web:e5ebaba172bab0add18d44"
+      };
+      firebase.initializeApp(firebaseConfig);
+  </script>
+  <script src="utils.js"></script>
+  <script src="auth.js"></script>
+  <script>
+    const content = document.getElementById('content');
+    const urgensiFilter = document.getElementById('urgensiFilter');
+    let currentUser;
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        currentUser = await auth.getUser();
+        renderNavButtons(currentUser);
+        loadAssignedReports();
+    });
+    
+    function renderNavButtons(user) {
+        const navContainer = document.getElementById('nav-buttons');
+        let buttonsHTML = `
+            <a href="Index.html" class="px-4 py-2 bg-gray-800 hover:bg-teal-600 rounded">Form Laporan</a>
+            <a href="Kasubag.html" class="px-4 py-2 bg-gray-800 hover:bg-teal-600 rounded">Panel Kasubag</a>
+            <a href="Petugas.html" class="px-4 py-2 bg-teal-700 text-white font-bold rounded">Petugas</a>
+            <a href="Rekap.html" class="px-4 py-2 bg-gray-800 hover:bg-teal-600 rounded">Rekap Bulanan</a>
+        `;
+        if (user) {
+            buttonsHTML += `<button onclick="auth.logout()" class="px-4 py-2 bg-red-600 hover:bg-red-700 rounded">Logout</button>`;
+        } else {
+            buttonsHTML += `<a href="login.html" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded">Login Staf</a>`;
+        }
+        navContainer.innerHTML = buttonsHTML;
+    }
+
+    function getSlaText(urgency) {
+        if (!urgency) return 'Normal (SLA: 3 Hari)';
+        if (urgency.toLowerCase() === 'mendesak') return 'Mendesak (SLA: 1 Hari)';
+        if (urgency.toLowerCase() === 'santai') return 'Santai (SLA: 7 Hari)';
+        return 'Normal (SLA: 3 Hari)';
+    }
+
+    async function loadAssignedReports() {
+        utils.showLoading(content);
+        const selectedUrgensi = urgensiFilter.value;
+        let fetchUrl = '/api/reports?status=Dalam Proses,Tertunda';
+        if (selectedUrgensi && selectedUrgensi !== 'Semua') {
+            fetchUrl += `&urgensi=${selectedUrgensi}`;
+        }
+        
+        try {
+            const response = await fetch(fetchUrl); // Endpoint publik
+            if (!response.ok) throw new Error('Gagal memuat data');
+            const data = await response.json();
+            
+            const formattedData = data.map(item => ({
+                TicketID: item.ticketId,
+                Status: item.status,
+                Pelapor: item.pelapor,
+                Lokasi: item.lokasi || '-',
+                "Tanggal Kegiatan": item.kategori === 'Support Kegiatan' ? (item.tanggalKegiatan || '-') : 'N/A',
+                Instruksi: getSlaText(item.urgensi),
+                Deskripsi: item.deskripsi,
+                AssignedTo: item.assignedTo,
+                docId: item.id
+            }));
+            
+            // Jika login sebagai petugas, filter hanya tugasnya. Jika tidak, tampilkan semua.
+            const tasksToDisplay = currentUser && currentUser.role === 'Petugas'
+                ? formattedData.filter(task => task.AssignedTo === currentUser.email)
+                : formattedData;
+
+            renderView(tasksToDisplay, currentUser ? currentUser.role : null);
+        } catch (err) {
+            utils.showError(content, err);
+        }
+    }
+
+    function renderView(data, userRole) {
+        const options = { emptyMessage: 'Tidak ada tugas aktif.', hiddenColumns: ['docId', 'AssignedTo'] };
+        if (userRole === 'Kasubag' || userRole === 'Petugas') {
+            options.action = { label: 'Update Status', render: (item) => `<button onclick="showUpdateModal('${item.docId}', '${item.TicketID}')" class="bg-indigo-600 hover:bg-indigo-700 px-3 py-1 rounded">Update</button>` };
+        }
+        utils.renderTable(content, data, options);
+    }
+
+    async function showUpdateModal(docId, ticketId) {
+        const modalBody = `<p class="mb-2">Update status tiket <strong>${utils.escapeHtml(ticketId)}</strong>.</p><label for="statusSelect" class="block text-sm">Status Baru:</label><select id="statusSelect" class="mt-1 w-full p-2 rounded bg-gray-900"><option>Dalam Proses</option><option>Tertunda</option><option>Selesai</option></select><label for="catatanInput" class="mt-4 block text-sm">Catatan Penutup:</label><textarea id="catatanInput" rows="3" class="mt-1 w-full p-2 rounded bg-gray-900"></textarea>`;
+        utils.showModal({
+            title: 'Update Status Tugas', body: modalBody, confirmText: 'Simpan',
+            onConfirm: async () => {
+                const status = document.getElementById('statusSelect').value;
+                const note = document.getElementById('catatanInput').value;
+                const updateData = { status: status, catatanPenutup: note };
+                
+                try {
+                    const headers = await auth.getAuthHeaders();
+                    const response = await fetch(`/api/reports/${docId}`, {
+                        method: 'PUT', headers: headers, body: JSON.stringify(updateData)
+                    });
+                    if (!response.ok) {
+                        const err = await response.json();
+                        throw new Error(err.error || 'Aksi tidak diizinkan.');
+                    }
+                    const data = await response.json();
+                    if (data.success) {
+                        utils.showNotification('Status berhasil diperbarui!');
+                        loadAssignedReports();
+                    }
+                } catch(err) {
+                    utils.showNotification(err.message, true);
+                }
+            }
+        });
+    }
+  </script>
+</body>
+</html>

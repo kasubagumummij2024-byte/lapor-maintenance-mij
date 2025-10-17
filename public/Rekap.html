@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Rekap Laporan - Sistem Laporan MIJ</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-gray-900 text-gray-200 min-h-screen">
+  <div class="max-w-6xl mx-auto p-6">
+    <header class="flex items-center justify-between mb-6">
+        <div><h1 class="text-2xl font-bold text-teal-400">Madrasah Istiqlal Jakarta — Sistem Laporan</h1><p class="text-sm text-gray-400">Maintenance & Support - Transparan · Terukur · Terverifikasi</p></div>
+        <nav class="space-x-2 flex items-center" id="nav-buttons">
+            </nav>
+    </header>
+    <main class="min-h-[520px] bg-gray-800/50 rounded-lg p-4">
+        <div class="bg-gray-800 p-6 rounded-2xl shadow text-gray-200">
+            <h2 class="text-xl font-semibold text-teal-400 mb-3">Rekap Laporan Bulanan</h2>
+            <div class="flex items-center space-x-3 mb-4 bg-gray-900/50 p-3 rounded-md">
+                <label for="bulan" class="font-medium">Bulan:</label>
+                <input type="month" id="bulan" class="p-2 bg-gray-900 border-gray-700 rounded" />
+                <label for="statusFilter" class="font-medium">Status:</label>
+                <select id="statusFilter" class="p-2 bg-gray-900 border border-gray-700 rounded"><option>Semua</option><option>Menunggu Penugasan</option><option>Dalam Proses</option><option>Tertunda</option><option>Selesai</option></select>
+                <button onclick="filterRekap()" class="px-4 py-2 bg-teal-600 hover:bg-teal-700 rounded">Tampilkan</button>
+                <div id="downloadButtonContainer"></div> 
+            </div>
+            <div id="content"></div>
+        </div>
+    </main>
+    <footer class="mt-8 text-sm text-gray-500 text-center">&copy; Madrasah Istiqlal Jakarta</footer>
+  </div>
+  <div id="appModal" class="modal-backdrop"><div class="modal-content"><h3 id="modalTitle" class="text-lg font-bold"></h3><div id="modalBody"></div><div id="modalFooter" class="mt-6 flex justify-end space-x-3"><button id="modalCancelBtn" class="px-4 py-2 bg-gray-600 rounded">Batal</button><button id="modalConfirmBtn" class="px-4 py-2 bg-teal-600 rounded">Konfirmasi</button></div></div></div>
+
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+  <script>
+      const firebaseConfig = {
+            apiKey: "AIzaSyDltfCcasmcgatDZLyXjad0c6rvJlkLNvM",
+            authDomain: "webapp-laporan-maintenance-v3.firebaseapp.com",
+            projectId: "webapp-laporan-maintenance-v3",
+            storageBucket: "webapp-laporan-maintenance-v3.appspot.com",
+            messagingSenderId: "164633815053",
+            appId: "1:164633815053:web:e5ebaba172bab0add18d44"
+      };
+      firebase.initializeApp(firebaseConfig);
+  </script>
+  <script src="utils.js"></script>
+  <script src="auth.js"></script>
+  <script>
+    const bulanInput = document.getElementById('bulan');
+    const statusFilter = document.getElementById('statusFilter');
+    const content = document.getElementById('content');
+    let currentUser;
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        currentUser = await auth.getUser();
+        renderNavButtons(currentUser);
+
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = (today.getMonth() + 1).toString().padStart(2, '0');
+        bulanInput.value = `${year}-${month}`;
+        filterRekap();
+    });
+
+    function renderNavButtons(user) {
+        const navContainer = document.getElementById('nav-buttons');
+        let buttonsHTML = `
+            <a href="Index.html" class="px-4 py-2 bg-gray-800 hover:bg-teal-600 rounded">Form Laporan</a>
+            <a href="Kasubag.html" class="px-4 py-2 bg-gray-800 hover:bg-teal-600 rounded">Panel Kasubag</a>
+            <a href="Petugas.html" class="px-4 py-2 bg-gray-800 hover:bg-teal-600 rounded">Petugas</a>
+            <a href="Rekap.html" class="px-4 py-2 bg-teal-700 text-white font-bold rounded">Rekap Bulanan</a>
+        `;
+        if (user) {
+            buttonsHTML += `<button onclick="auth.logout()" class="px-4 py-2 bg-red-600 hover:bg-red-700 rounded">Logout</button>`;
+        } else {
+            buttonsHTML += `<a href="login.html" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded">Login Staf</a>`;
+        }
+        navContainer.innerHTML = buttonsHTML;
+    }
+
+    async function filterRekap() {
+        const bulan = bulanInput.value;
+        const status = statusFilter.value;
+        if (!bulan) return;
+        utils.showLoading(content);
+        
+        let fetchUrl = `/api/reports?month=${bulan}`;
+        if (status && status !== 'Semua') {
+            fetchUrl += `&status=${status}`;
+        }
+        
+        try {
+            const response = await fetch(fetchUrl); // Endpoint publik
+            if (!response.ok) throw new Error('Gagal ambil data rekap');
+            const data = await response.json();
+
+            const downloadContainer = document.getElementById('downloadButtonContainer');
+            if (currentUser && currentUser.role === 'Kasubag') {
+                downloadContainer.innerHTML = `<button onclick="downloadExcel()" class="px-4 py-2 bg-green-600 hover:bg-green-700 rounded flex items-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
+                  Download Excel
+                </button>`;
+            } else {
+                downloadContainer.innerHTML = '';
+            }
+
+            const formattedData = data.map(item => ({
+                TicketID: item.ticketId,
+                Timestamp: item.timestamp,
+                "Waktu Update Terakhir": item.lastUpdateAt,
+                Status: item.status,
+                Pelapor: item.pelapor,
+                Lokasi: item.lokasi || '-',
+                Deskripsi: item.deskripsi,
+                AssignedTo: item.assignedTo || '-',
+                "Catatan Petugas": item.catatanPenutup || '-'
+            }));
+            utils.renderTable(content, formattedData, { emptyMessage: 'Tidak ada laporan pada bulan yang dipilih.' });
+        } catch (err) {
+            utils.showError(content, err);
+        }
+    }
+
+    async function downloadExcel() {
+        const bulan = bulanInput.value;
+        const status = statusFilter.value;
+        if (!bulan) {
+            utils.showNotification("Pilih bulan terlebih dahulu!", true);
+            return;
+        }
+        let queryString = `?month=${bulan}`;
+        if (status && status !== 'Semua') {
+            queryString += `&status=${status}`;
+        }
+        
+        try {
+            const headers = await auth.getAuthHeaders();
+            const response = await fetch(`/api/reports/export${queryString}`, { headers });
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(errorText || "Gagal mengunduh file. Anda mungkin tidak memiliki izin.");
+            }
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = `Laporan_${bulan}.xlsx`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+        } catch(err) {
+            utils.showNotification(err.message, true);
+        }
+    }
+  </script>
+</body>
+</html>

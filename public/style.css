@@ -1,0 +1,5 @@
+/* public/style.css */
+.modal-backdrop { z-index: 1000; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0, 0, 0, 0.6); display: flex; align-items: center; justify-content: center; opacity: 0; visibility: hidden; transition: opacity 0.3s, visibility 0.3s; }
+.modal-backdrop.is-visible { opacity: 1; visibility: visible; }
+.modal-content { background-color: #1F2937; color: #D1D5DB; padding: 1.5rem; border-radius: 0.75rem; width: 90%; max-width: 500px; transform: translateY(-20px); transition: transform 0.3s; }
+.modal-backdrop.is-visible .modal-content { transform: translateY(0); }

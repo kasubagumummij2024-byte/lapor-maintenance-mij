@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Form Laporan - Sistem Laporan MIJ</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-gray-900 text-gray-200 min-h-screen">
+  <div class="max-w-6xl mx-auto p-6">
+    <header class="flex items-center justify-between mb-6">
+        <div><h1 class="text-2xl font-bold text-teal-400">Madrasah Istiqlal Jakarta — Sistem Laporan</h1><p class="text-sm text-gray-400">Maintenance & Support - Transparan · Terukur · Terverifikasi</p></div>
+        <nav class="space-x-2 flex items-center">
+            <a href="Index.html" class="px-4 py-2 bg-teal-700 text-white font-bold rounded">Form Laporan</a>
+            <a href="Kasubag.html" class="px-4 py-2 bg-gray-800 hover:bg-teal-600 rounded">Panel Kasubag</a>
+            <a href="Petugas.html" class="px-4 py-2 bg-gray-800 hover:bg-teal-600 rounded">Petugas</a>
+            <a href="Rekap.html" class="px-4 py-2 bg-gray-800 hover:bg-teal-600 rounded">Rekap Bulanan</a>
+            <a href="login.html" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded">Login Staf</a>
+        </nav>
+    </header>
+    <main class="min-h-[520px] bg-gray-800/50 rounded-lg p-4">
+        <div class="bg-gray-800 p-6 rounded-2xl shadow text-gray-200 max-w-3xl mx-auto">
+            <h2 class="text-xl font-semibold text-teal-400 mb-4">Form Laporan Maintenance & Support</h2>
+            <form id="reportForm" class="space-y-4">
+                <div class="grid md:grid-cols-2 gap-4"><div><label for="pelapor" class="block text-sm">Nama Pelapor</label><input id="pelapor" name="pelapor" required class="mt-1 w-full p-2 rounded bg-gray-900 border-gray-700"></div><div><label for="unit" class="block text-sm">Unit / Satuan Kerja</label><select id="unit" name="unit" required class="mt-1 w-full p-2 rounded bg-gray-900 border-gray-700"><option value="">-- Pilih Unit --</option><option>Kelompok Bermain</option><option>Raudhatul Athfal</option><option>Madrasah Ibtidaiyah</option><option>Madrasah Tsanawiyah</option><option>Madrasah Aliyah</option><option>IBS</option><option>Penjamin Mutu</option><option>Keuangan</option><option>Humas</option><option>Kepegawaian</option><option>MIJ Mart</option><option>Umum</option></select></div></div><div class="grid md:grid-cols-2 gap-4"><div><label for="kontak" class="block text-sm">Kontak (WA)</label><input id="kontak" name="kontak" required pattern="^08[0-9]{8,12}$" placeholder="Contoh: 081234567890" class="mt-1 w-full p-2 rounded bg-gray-900 border-gray-700"></div><div><label for="kategori" class="block text-sm">Kategori</label><select id="kategori" name="kategori" required class="mt-1 w-full p-2 rounded bg-gray-900 border-gray-700"><option value="">-- Pilih Kategori --</option><option>Maintenance Gedung</option><option>Sarana & Prasarana</option><option>Support Kegiatan</option><option>Lain-Lain</option></select></div></div><div id="tanggalKegiatanWrap" class="hidden"><label for="tanggalKegiatan" class="block text-sm">Tanggal Kegiatan</label><input id="tanggalKegiatan" type="date" name="tanggalKegiatan" class="mt-1 w-full p-2 rounded bg-gray-900 border-gray-700"></div><div class="grid md:grid-cols-2 gap-4"><div><label for="lokasi" class="block text-sm">Lokasi (e.g. Ruang Kelas 3A)</label><input id="lokasi" name="lokasi" required class="mt-1 w-full p-2 rounded bg-gray-900 border-gray-700"></div><div><label for="urgensi" class="block text-sm">Urgensi</label><select id="urgensi" name="urgensi" class="mt-1 w-full p-2 rounded bg-gray-900 border-gray-700"><option>Mendesak</option><option selected>Normal</option><option>Santai</option></select></div></div><div><label for="deskripsi" class="block text-sm">Deskripsi Masalah</label><textarea id="deskripsi" name="deskripsi" required rows="4" class="mt-1 w-full p-2 rounded bg-gray-900 border-gray-700"></textarea></div><div class="flex items-center space-x-4 pt-2"><button id="submitBtn" type="submit" class="px-5 py-2.5 bg-teal-600 hover:bg-teal-700 rounded-lg">Kirim Laporan</button><div id="statusMsg" class="text-sm"></div></div>
+            </form>
+        </div>
+    </main>
+    <footer class="mt-8 text-sm text-gray-500 text-center">&copy; Madrasah Istiqlal Jakarta</footer>
+  </div>
+  <div id="appModal" class="modal-backdrop"><div class="modal-content"><h3 id="modalTitle" class="text-lg font-bold"></h3><div id="modalBody"></div><div id="modalFooter" class="mt-6 flex justify-end space-x-3"><button id="modalCancelBtn" class="px-4 py-2 bg-gray-600 rounded">Batal</button><button id="modalConfirmBtn" class="px-4 py-2 bg-teal-600 rounded">Konfirmasi</button></div></div></div>
+  <script src="utils.js"></script>
+  <script>
+    const reportForm = document.getElementById('reportForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const statusMsg = document.getElementById('statusMsg');
+    const kategoriSelect = document.getElementById('kategori');
+    const tanggalWrap = document.getElementById('tanggalKegiatanWrap');
+    function handleKategoriChange() {
+      const isSupport = kategoriSelect.value === 'Support Kegiatan';
+      tanggalWrap.classList.toggle('hidden', !isSupport);
+      document.getElementById('tanggalKegiatan').required = isSupport;
+    }
+    document.addEventListener('DOMContentLoaded', handleKategoriChange);
+    kategoriSelect.addEventListener('change', handleKategoriChange);
+    reportForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      if (!reportForm.checkValidity()) { reportForm.reportValidity(); return; }
+      submitBtn.disabled = true;
+      statusMsg.textContent = '⏳ Mengirim laporan...';
+      const formData = new FormData(reportForm);
+      const formObj = Object.fromEntries(formData.entries());
+      fetch('/api/reports', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formObj),
+      })
+      .then(response => { if (!response.ok) throw new Error('Server merespon dengan error!'); return response.json(); })
+      .then(data => { if (data.success) onSuccess(data); else onFailure({ message: 'Gagal mengirim laporan.' }); })
+      .catch(err => onFailure(err));
+    });
+    function onSuccess(res) {
+      utils.showNotification(`Laporan terkirim! ID Tiket: ${res.ticket}`);
+      reportForm.reset();
+      handleKategoriChange();
+      submitBtn.disabled = false;
+    };
+    function onFailure(err) {
+      console.error('Submit Error:', err);
+      utils.showNotification(err.message || 'Terjadi kesalahan.', true);
+      submitBtn.disabled = false;
+    };
+  </script>
+</body>
+</html>
