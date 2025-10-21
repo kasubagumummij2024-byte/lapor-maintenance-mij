@@ -8,12 +8,20 @@ const app = express();
 app.use(express.json());
 app.use(express.static('public'));
 
-// Pastikan file serviceAccountKey.json ada di folder utama
-const serviceAccount = require('./serviceAccountKey.json');
+// KODE BARU (UNTUK DEPLOY)
+let serviceAccount;
+
+if (process.env.GOOGLE_CREDENTIALS_JSON) {
+  // Jika berjalan di Railway, baca dari environment variable
+  serviceAccount = JSON.parse(process.env.GOOGLE_CREDENTIALS_JSON);
+} else {
+  // Jika berjalan di lokal, baca dari file
+  serviceAccount = require("./serviceAccountKey.json");
+}
+
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount)
 });
-const db = admin.firestore();
 
 // --- Middleware (Penjaga Keamanan) ---
 const checkAuth = async (req, res, next) => {
