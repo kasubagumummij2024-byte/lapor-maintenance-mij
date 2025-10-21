@@ -131,7 +131,7 @@ app.get('/api/reports/export', checkAuth, async (req, res) => {
     } catch (error) { console.error("Error exporting to Excel:", error); res.status(500).send("Gagal mengekspor data."); }
 });
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
   console.log(`Server berjalan di http://localhost:${PORT}`);
 });
