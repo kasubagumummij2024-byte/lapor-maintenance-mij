@@ -3,10 +3,17 @@
 const express = require('express');
 const admin = require('firebase-admin');
 const XLSX = require('xlsx');
+const path = require('path'); // DITAMBAHKAN: Modul 'path' untuk file
 
 const app = express();
 app.use(express.json());
-app.use(express.static('public'));
+// Diperbarui untuk best practice
+app.use(express.static(path.join(__dirname, 'public')));
+
+// DITAMBAHKAN: Route untuk menyajikan login.html di alamat root '/'
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'login.html'));
+});
 
 // KODE BARU (UNTUK DEPLOY)
 let serviceAccount;
@@ -23,6 +30,9 @@ admin.initializeApp({
   credential: admin.credential.cert(serviceAccount)
 });
 
+// DITAMBAHKAN: Inisialisasi Firestore
+const db = admin.firestore();
+
 // --- Middleware (Penjaga Keamanan) ---
 const checkAuth = async (req, res, next) => {
   if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
@@ -30,7 +40,7 @@ const checkAuth = async (req, res, next) => {
     try {
       const decodedToken = await admin.auth().verifyIdToken(idToken);
       req.user = decodedToken;
-      const userDoc = await db.collection('users').doc(req.user.uid).get();
+      const userDoc = await db.collection('users').doc(req.user.uid).get(); // 'db' sekarang terdefinisi
       req.user.role = userDoc.exists ? userDoc.data().role : 'User'; // Default role 'User'
       return next();
     } catch (error) {
@@ -60,7 +70,7 @@ app.get('/api/user', checkAuth, (req, res) => {
 app.post('/api/reports', async (req, res) => {
     try {
         const newReportData = { ...req.body, ticketId: generateTicketID(), status: 'Menunggu Penugasan', timestamp: new Date(), assignedTo: '', assignedAt: null, lastUpdateAt: new Date(), tglSelesai: '', catatanPenutup: '' };
-        const docRef = await db.collection('reports').add(newReportData);
+        const docRef = await db.collection('reports').add(newReportData); // 'db' sekarang terdefinisi
         res.status(201).json({ success: true, ticket: newReportData.ticketId, id: docRef.id });
     } catch (error) { console.error("Error creating report:", error); res.status(500).json({ error: "Gagal menyimpan laporan." }); }
 });
@@ -68,7 +78,7 @@ app.post('/api/reports', async (req, res) => {
 // Endpoint untuk mengambil laporan (SEKARANG PUBLIK)
 app.get('/api/reports', async (req, res) => {
     try {
-        let query = db.collection('reports');
+        let query = db.collection('reports'); // 'db' sekarang terdefinisi
         if (req.query.status && req.query.status !== 'Semua') { const statuses = req.query.status.split(','); query = query.where('status', statuses.length > 1 ? 'in' : '==', statuses.length > 1 ? statuses : statuses[0]); }
         if (req.query.urgensi && req.query.urgensi !== 'Semua') { query = query.where('urgensi', '==', req.query.urgensi); }
         if (req.query.month) { const [year, month] = req.query.month.split('-').map(Number); const startDate = new Date(year, month - 1, 1); const endDate = new Date(year, month, 0, 23, 59, 59); query = query.where('timestamp', '>=', startDate).where('timestamp', '<=', endDate); }
@@ -97,7 +107,7 @@ app.put('/api/reports/:docId', checkAuth, async (req, res) => {
         if (updateData.status === 'Selesai' && !updateData.tglSelesai) {
             updateData.tglSelesai = new Date().toISOString().split('T')[0];
         }
-        await db.collection('reports').doc(docId).update(updateData);
+        await db.collection('reports').doc(docId).update(updateData); // 'db' sekarang terdefinisi
         res.status(200).json({ success: true });
     } catch (error) { console.error(`Error updating report ${req.params.docId}:`, error); res.status(500).json({ error: "Gagal mengupdate laporan." }); }
 });
@@ -108,7 +118,7 @@ app.get('/api/reports/export', checkAuth, async (req, res) => {
         return res.status(403).send('Akses ditolak. Hanya Kasubag yang bisa mengunduh laporan.');
     }
     try {
-        let query = db.collection('reports');
+        let query = db.collection('reports'); // 'db' sekarang terdefinisi
         if (req.query.status && req.query.status !== 'Semua') { const statuses = req.query.status.split(','); query = query.where('status', statuses.length > 1 ? 'in' : '==', statuses.length > 1 ? statuses : statuses[0]); }
         if (req.query.month) { const [year, month] = req.query.month.split('-').map(Number); const startDate = new Date(year, month - 1, 1); const endDate = new Date(year, month, 0, 23, 59, 59); query = query.where('timestamp', '>=', startDate).where('timestamp', '<=', endDate); }
         const snapshot = await query.orderBy('timestamp', 'desc').get();
