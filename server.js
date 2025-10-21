@@ -10,8 +10,13 @@ app.use(express.json());
 // Diperbarui untuk best practice
 app.use(express.static(path.join(__dirname, 'public')));
 
-// DITAMBAHKAN: Route untuk menyajikan login.html di alamat root '/'
+// Route untuk halaman utama (Index.html) yang bisa dilihat semua orang
 app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'Index.html'));
+});
+
+// Route untuk halaman login (jika diakses manual)
+app.get('/login', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
 
