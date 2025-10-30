@@ -18,7 +18,7 @@
             <h2 class="text-xl font-semibold text-teal-400 mb-3">Panel Kasubag Umum - Laporan Menunggu Penugasan</h2>
             <div class="flex items-center space-x-3 mb-4 bg-gray-900/50 p-3 rounded-md">
                 <label for="urgensiFilter" class="font-medium">Filter Urgensi:</label>
-                <select id="urgensiFilter" class="p-2 bg-gray-900 border border-gray-700 rounded"><option>Semua</option><option>Mendesak</option><option>Normal</option><option>Santai</option></select>
+                <select id="urgensiFilter" class="p-2 bg-gray-900 border border-gray-700 rounded"><option>Semua</option><option>Mendesak</option><option>Normal</option><option>Biasa</option></select>
                 <button onclick="loadPendingReports()" class="px-4 py-2 bg-teal-600 hover:bg-teal-700 rounded">Filter</button>
             </div>
             <div id="content"></div>
@@ -27,6 +27,7 @@
     <footer class="mt-8 text-sm text-gray-500 text-center">&copy; Madrasah Istiqlal Jakarta</footer>
   </div>
   <div id="appModal" class="modal-backdrop"><div class="modal-content"><h3 id="modalTitle" class="text-lg font-bold"></h3><div id="modalBody"></div><div id="modalFooter" class="mt-6 flex justify-end space-x-3"><button id="modalCancelBtn" class="px-4 py-2 bg-gray-600 rounded">Batal</button><button id="modalConfirmBtn" class="px-4 py-2 bg-teal-600 rounded">Konfirmasi</button></div></div></div>
+  
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
   <script>
@@ -67,7 +68,7 @@
     function getSlaText(urgency) {
         if (!urgency) return 'Normal (SLA: 3 Hari)';
         if (urgency.toLowerCase() === 'mendesak') return 'Mendesak (SLA: 1 Hari)';
-        if (urgency.toLowerCase() === 'santai') return 'Santai (SLA: 7 Hari)';
+        if (urgency.toLowerCase() === 'biasa') return 'Biasa (SLA: 7 Hari)';
         return 'Normal (SLA: 3 Hari)';
     }
 
@@ -78,14 +79,16 @@
         if (selectedUrgensi && selectedUrgensi !== 'Semua') { fetchUrl += `&urgensi=${selectedUrgensi}`; }
         
         try {
-            const response = await fetch(fetchUrl); // Endpoint publik, tidak perlu header
+            const response = await fetch(fetchUrl);
             if (!response.ok) throw new Error('Gagal memuat data');
             const data = await response.json();
             
             const formattedData = data.map(item => ({
                 TicketID: item.ticketId, Pelapor: item.pelapor, Lokasi: item.lokasi || '-',
                 "Tanggal Kegiatan": item.kategori === 'Support Kegiatan' ? (item.tanggalKegiatan || '-') : 'N/A',
-                Urgensi: getSlaText(item.urgensi), Deskripsi: item.deskripsi, docId: item.id
+                Urgensi: getSlaText(item.urgensi),
+                OriginalUrgensi: item.urgensi, // <-- REVISI: Kirim urgensi asli untuk modal
+                Deskripsi: item.deskripsi, docId: item.id
             }));
             renderView(formattedData, currentUser ? currentUser.role : null);
         } catch(err) {
@@ -94,25 +97,51 @@
     }
     
     function renderView(data, userRole) {
-        const options = { emptyMessage: '👍 Semua laporan sudah ditugaskan.', hiddenColumns: ['docId'] };
+        const options = { 
+            emptyMessage: '👍 Semua laporan sudah ditugaskan.', 
+            hiddenColumns: ['docId', 'OriginalUrgensi'] // <-- REVISI: Sembunyikan urgensi asli
+        };
         if (userRole === 'Kasubag') {
-            options.action = { label: 'Tugaskan', render: (item) => `<button onclick="showAssignModal('${item.docId}', '${item.TicketID}')" class="bg-teal-600 hover:bg-teal-700 px-3 py-1 rounded">Assign</button>` };
+            // REVISI: Ubah pemanggilan fungsi, kirim item.OriginalUrgensi
+            options.action = { label: 'Tugaskan', render: (item) => `<button onclick="showAssignModal('${item.docId}', '${item.TicketID}', '${item.OriginalUrgensi}')" class="bg-teal-600 hover:bg-teal-700 px-3 py-1 rounded">Assign</button>` };
         }
         utils.renderTable(content, data, options);
     }
 
-    async function showAssignModal(docId, ticketId) {
-        const modalBody = `<p>Tugaskan tiket <strong>${utils.escapeHtml(ticketId)}</strong> ke:</p><input id="petugasInput" type="text" class="mt-1 w-full p-2 rounded bg-gray-900" placeholder="nama/email petugas" />`;
+    // REVISI: Fungsi sekarang menerima 'originalUrgency'
+    async function showAssignModal(docId, ticketId, originalUrgency) {
+        // REVISI: Tambahkan dropdown untuk Urgensi di dalam modalBody
+        const modalBody = `
+            <p>Tugaskan tiket <strong>${utils.escapeHtml(ticketId)}</strong> ke:</p>
+            <input id="petugasInput" type="text" class="mt-1 w-full p-2 rounded bg-gray-900" placeholder="nama/email petugas" />
+            
+            <label for="urgensiSelect" class="block text-sm mt-4">Sesuaikan Urgensi:</label>
+            <select id="urgensiSelect" class="mt-1 w-full p-2 rounded bg-gray-900 border border-gray-700">
+                <option value="Mendesak" ${originalUrgency === 'Mendesak' ? 'selected' : ''}>Mendesak</option>
+                <option value="Normal" ${originalUrgency === 'Normal' ? 'selected' : ''}>Normal</option>
+                <option value="Biasa" ${originalUrgency === 'Biasa' ? 'selected' : ''}>Biasa</option>
+            </select>
+        `;
+        
         utils.showModal({
             title: 'Assign Tugas', body: modalBody, confirmText: 'Tugaskan',
             onConfirm: async () => {
                 const assignee = document.getElementById('petugasInput').value;
+                const newUrgensi = document.getElementById('urgensiSelect').value; // <-- REVISI: Ambil nilai urgensi baru
+                
                 if (!assignee) { utils.showNotification('Nama petugas harus diisi!', true); return; }
+                
                 try {
                     const headers = await auth.getAuthHeaders();
                     const response = await fetch(`/api/reports/${docId}`, {
                         method: 'PUT', headers: headers,
-                        body: JSON.stringify({ status: 'Dalam Proses', assignedTo: assignee, assignedAt: new Date() })
+                        // REVISI: Kirim urgensi baru ke server
+                        body: JSON.stringify({ 
+                            status: 'Dalam Proses', 
+                            assignedTo: assignee, 
+                            assignedAt: new Date(),
+                            urgensi: newUrgensi 
+                        })
                     });
                     if(!response.ok) {
                         const err = await response.json();
@@ -120,7 +149,7 @@
                     }
                     const data = await response.json();
                     if (data.success) {
-                        utils.showNotification('Tugas berhasil ditugaskan!');
+                        utils.showNotification('Tugas berhasil ditugaskan dan diperbarui!');
                         loadPendingReports();
                     }
                 } catch (err) {

@@ -19,7 +19,7 @@
             <h2 class="text-xl font-semibold text-teal-400 mb-3">Panel Petugas - Tugas Saya</h2>
             <div class="flex items-center space-x-3 mb-4 bg-gray-900/50 p-3 rounded-md">
                 <label for="urgensiFilter" class="font-medium">Filter Urgensi:</label>
-                <select id="urgensiFilter" class="p-2 bg-gray-900 border border-gray-700 rounded"><option>Semua</option><option>Mendesak</option><option>Normal</option><option>Santai</option></select>
+                <select id="urgensiFilter" class="p-2 bg-gray-900 border border-gray-700 rounded"><option>Semua</option><option>Mendesak</option><option>Normal</option><option>Biasa</option></select>
                 <button onclick="loadAssignedReports()" class="px-4 py-2 bg-teal-600 hover:bg-teal-700 rounded">Filter</button>
             </div>
             <div id="content"></div>
@@ -74,7 +74,7 @@
     function getSlaText(urgency) {
         if (!urgency) return 'Normal (SLA: 3 Hari)';
         if (urgency.toLowerCase() === 'mendesak') return 'Mendesak (SLA: 1 Hari)';
-        if (urgency.toLowerCase() === 'santai') return 'Santai (SLA: 7 Hari)';
+        if (urgency.toLowerCase() === 'biasa') return 'Biasa (SLA: 7 Hari)';
         return 'Normal (SLA: 3 Hari)';
     }
 
