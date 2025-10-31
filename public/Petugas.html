@@ -51,7 +51,7 @@
 
     document.addEventListener('DOMContentLoaded', async () => {
         currentUser = await auth.getUser();
-        renderNavButtons(currentUser);
+        renderNavButtons(currentUser); // <-- REVISI: BARIS INI DITAMBAHKAN
         loadAssignedReports();
     });
     
@@ -71,11 +71,30 @@
         navContainer.innerHTML = buttonsHTML;
     }
 
-    function getSlaText(urgency) {
-        if (!urgency) return 'Normal (SLA: 3 Hari)';
-        if (urgency.toLowerCase() === 'mendesak') return 'Mendesak (SLA: 1 Hari)';
-        if (urgency.toLowerCase() === 'biasa') return 'Biasa (SLA: 7 Hari)';
-        return 'Normal (SLA: 3 Hari)';
+    // REVISI: Fungsi baru untuk menghitung sisa hari
+    function getRemainingSlaText(slaTimestamp) {
+        if (!slaTimestamp || !slaTimestamp._seconds) {
+            return '<span class="text-gray-400">-</span>';
+        }
+        
+        const now = new Date();
+        const deadline = new Date(slaTimestamp._seconds * 1000);
+        
+        now.setHours(0, 0, 0, 0);
+        deadline.setHours(0, 0, 0, 0);
+
+        const diffTime = deadline.getTime() - now.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+        if (diffDays < 0) {
+            return `<span class="font-bold text-red-500">🔴 Terlambat ${Math.abs(diffDays)} hari</span>`;
+        } else if (diffDays === 0) {
+            return `<span class="font-bold text-yellow-400">⚠️ HARI INI</span>`;
+        } else if (diffDays === 1) {
+            return `<span class="text-yellow-500">Sisa 1 hari</span>`;
+        } else {
+            return `<span class="text-green-500">Sisa ${diffDays} hari</span>`;
+        }
     }
 
     async function loadAssignedReports() {
@@ -87,23 +106,22 @@
         }
         
         try {
-            const response = await fetch(fetchUrl); // Endpoint publik
+            const response = await fetch(fetchUrl);
             if (!response.ok) throw new Error('Gagal memuat data');
             const data = await response.json();
             
             const formattedData = data.map(item => ({
+                "Sisa Waktu SLA": getRemainingSlaText(item.slaDeadline),
                 TicketID: item.ticketId,
                 Status: item.status,
                 Pelapor: item.pelapor,
                 Lokasi: item.lokasi || '-',
                 "Tanggal Kegiatan": item.kategori === 'Support Kegiatan' ? (item.tanggalKegiatan || '-') : 'N/A',
-                Instruksi: getSlaText(item.urgensi),
                 Deskripsi: item.deskripsi,
                 AssignedTo: item.assignedTo,
                 docId: item.id
             }));
             
-            // Jika login sebagai petugas, filter hanya tugasnya. Jika tidak, tampilkan semua.
             const tasksToDisplay = currentUser && currentUser.role === 'Petugas'
                 ? formattedData.filter(task => task.AssignedTo === currentUser.email)
                 : formattedData;
@@ -115,7 +133,10 @@
     }
 
     function renderView(data, userRole) {
-        const options = { emptyMessage: 'Tidak ada tugas aktif.', hiddenColumns: ['docId', 'AssignedTo'] };
+        const options = { 
+            emptyMessage: '🎉 Anda tidak memiliki tugas aktif saat ini.', 
+            hiddenColumns: ['docId', 'AssignedTo'] 
+        };
         if (userRole === 'Kasubag' || userRole === 'Petugas') {
             options.action = { label: 'Update Status', render: (item) => `<button onclick="showUpdateModal('${item.docId}', '${item.TicketID}')" class="bg-indigo-600 hover:bg-indigo-700 px-3 py-1 rounded">Update</button>` };
         }

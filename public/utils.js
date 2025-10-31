@@ -1,4 +1,4 @@
-// public/utils.js
+// public/utils.js (Final dengan Perbaikan Render HTML)
 const utils = {
     showLoading: (container) => { container.innerHTML = '<div class="p-8 text-center text-gray-400">⏳ Memuat data...</div>'; },
     showError: (container, err) => { console.error('Error:', err); const message = (err && err.message) ? err.message : 'Terjadi kesalahan server.'; container.innerHTML = `<div class="p-8 text-center text-red-400">❌ Gagal memuat: ${utils.escapeHtml(message)}</div>`; },
@@ -40,7 +40,14 @@ const utils = {
                     let val = item[h];
                     if (val && typeof val === 'object' && val.hasOwnProperty('_seconds')) {
                         val = new Date(val._seconds * 1000).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' });
-                    } else { val = utils.escapeHtml(val); }
+                    } 
+                    // REVISI DI SINI: Jika nilainya adalah string dan dimulai dengan '<', anggap itu HTML
+                    else if (typeof val === 'string' && val.trim().startsWith('<')) {
+                        // Jangan di-escape
+                    } 
+                    else { 
+                        val = utils.escapeHtml(val); // Escape semua teks lainnya
+                    }
                     html += `<td class="px-3 py-2 border-gray-700 align-top">${val}</td>`;
                 }
             });
